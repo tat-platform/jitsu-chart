@@ -31,7 +31,10 @@
       "Bash(docker port:*)",
       "Bash(kubectl rollout status:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(kubectl create:*)",
+      "Bash(SYNCCTL_TOKEN=\"Qli7qAjdD3jFB613jhtZBcTorJVM5Op0DPRAy9CbXjk\")",
+      "Bash(PGPASSWORD='jitsu123' psql:*)"
     ],
     "deny": [],
     "ask": []

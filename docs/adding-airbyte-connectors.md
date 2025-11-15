@@ -1,375 +1,358 @@
-# Adding Custom Airbyte Connectors to Jitsu
+# Adding Airbyte Connectors to Jitsu
 
-This guide explains how to add custom Airbyte connectors to your Jitsu deployment beyond the default 4 connectors (Firebase, Attio, Linear, MongoDB).
+This guide shows you how to add custom Airbyte connectors (Google Analytics, Stripe, PostgreSQL, etc.) to your Jitsu v2.11.0 deployment.
 
 ## Overview
 
-Jitsu v2.11.0 ships with a limited set of pre-configured connectors. To use additional Airbyte connectors (like Google Analytics, Stripe, PostgreSQL, etc.), you need to add them to your deployment configuration.
+Jitsu v2.11.0 ships with 4 default connectors but supports adding any Airbyte connector via the database.
 
-## Available Airbyte Connectors
+**Default Connectors:**
+- Firebase
+- Attio
+- Linear
+- MongoDB
 
-Browse the full Airbyte connector catalog:
-- **GitHub Repository**: https://github.com/airbytehq/airbyte/tree/master/airbyte-integrations/connectors
-- **Airbyte Connector Registry**: https://hub.docker.com/u/airbyte
+**How It Works:**
+Jitsu loads connectors from two sources:
+1. **Application code** - 4 hardcoded connectors
+2. **PostgreSQL database** - `ConnectorPackage` table (custom connectors)
 
-## Method 1: Add Connector via Helm Values (Recommended)
+## Quick Start
+
+### Add Google Analytics (GA4)
+
+```bash
+kubectl exec -n jitsu jitsu-postgresql-0 -- bash -c \
+  'export PGPASSWORD=jitsu123 && psql -U jitsu -d jitsu -c \
+  "INSERT INTO newjitsu.\"ConnectorPackage\" (id, \"packageId\", \"packageType\", meta) \
+   VALUES ('\''airbyte-google-analytics-data-api'\'', \
+           '\''airbyte/source-google-analytics-data-api'\'', \
+           '\''airbyte'\'', \
+           '\''{\"name\": \"Google Analytics (GA4)\", \"license\": \"MIT\", \"connectorSubtype\": \"api\"}'\''::jsonb);"'
+```
+
+### Verify
+
+```bash
+# Check via API
+curl -s http://localhost:4000/api/sources | jq '.sources[].meta.name'
+
+# You should now see 5 connectors including "Google Analytics (GA4)"
+```
+
+**Access in UI:** http://localhost:4000/jitsu/services (refresh the page)
+
+---
+
+## Using the Helper Script
+
+We provide a script to simplify adding connectors:
+
+```bash
+# Add Stripe
+./scripts/add-connector.sh airbyte-stripe airbyte/source-stripe "Stripe"
+
+# Add PostgreSQL
+./scripts/add-connector.sh airbyte-postgres airbyte/source-postgres "PostgreSQL"
+
+# Add Shopify
+./scripts/add-connector.sh airbyte-shopify airbyte/source-shopify "Shopify"
+```
+
+**Script Usage:**
+```bash
+./scripts/add-connector.sh <connector-id> <docker-image> <display-name>
+```
+
+---
+
+## Popular Connectors
+
+Here are some commonly used Airbyte connectors you can add:
+
+### Analytics & Tracking
+
+| Name | Command |
+|------|---------|
+| **Google Analytics (GA4)** | `./scripts/add-connector.sh airbyte-ga4 airbyte/source-google-analytics-data-api "Google Analytics (GA4)"` |
+| **Google Ads** | `./scripts/add-connector.sh airbyte-google-ads airbyte/source-google-ads "Google Ads"` |
+| **Facebook Marketing** | `./scripts/add-connector.sh airbyte-facebook airbyte/source-facebook-marketing "Facebook Marketing"` |
+| **Mixpanel** | `./scripts/add-connector.sh airbyte-mixpanel airbyte/source-mixpanel "Mixpanel"` |
+
+### E-Commerce
+
+| Name | Command |
+|------|---------|
+| **Stripe** | `./scripts/add-connector.sh airbyte-stripe airbyte/source-stripe "Stripe"` |
+| **Shopify** | `./scripts/add-connector.sh airbyte-shopify airbyte/source-shopify "Shopify"` |
+| **WooCommerce** | `./scripts/add-connector.sh airbyte-woocommerce airbyte/source-woocommerce "WooCommerce"` |
+
+### CRM & Sales
+
+| Name | Command |
+|------|---------|
+| **Salesforce** | `./scripts/add-connector.sh airbyte-salesforce airbyte/source-salesforce "Salesforce"` |
+| **HubSpot** | `./scripts/add-connector.sh airbyte-hubspot airbyte/source-hubspot "HubSpot"` |
+| **Pipedrive** | `./scripts/add-connector.sh airbyte-pipedrive airbyte/source-pipedrive "Pipedrive"` |
+| **Zendesk** | `./scripts/add-connector.sh airbyte-zendesk airbyte/source-zendesk "Zendesk"` |
+
+### Databases
+
+| Name | Command |
+|------|---------|
+| **PostgreSQL** | `./scripts/add-connector.sh airbyte-postgres airbyte/source-postgres "PostgreSQL"` |
+| **MySQL** | `./scripts/add-connector.sh airbyte-mysql airbyte/source-mysql "MySQL"` |
+| **Microsoft SQL Server** | `./scripts/add-connector.sh airbyte-mssql airbyte/source-mssql "SQL Server"` |
+| **Oracle DB** | `./scripts/add-connector.sh airbyte-oracle airbyte/source-oracle "Oracle"` |
+| **Snowflake** | `./scripts/add-connector.sh airbyte-snowflake airbyte/source-snowflake "Snowflake"` |
+
+### Development & Project Management
+
+| Name | Command |
+|------|---------|
+| **GitHub** | `./scripts/add-connector.sh airbyte-github airbyte/source-github "GitHub"` |
+| **GitLab** | `./scripts/add-connector.sh airbyte-gitlab airbyte/source-gitlab "GitLab"` |
+| **Jira** | `./scripts/add-connector.sh airbyte-jira airbyte/source-jira "Jira"` |
+
+### Communication
+
+| Name | Command |
+|------|---------|
+| **Slack** | `./scripts/add-connector.sh airbyte-slack airbyte/source-slack "Slack"` |
+| **Intercom** | `./scripts/add-connector.sh airbyte-intercom airbyte/source-intercom "Intercom"` |
+| **Mailchimp** | `./scripts/add-connector.sh airbyte-mailchimp airbyte/source-mailchimp "Mailchimp"` |
+
+### Other Data Sources
+
+| Name | Command |
+|------|---------|
+| **Google Sheets** | `./scripts/add-connector.sh airbyte-google-sheets airbyte/source-google-sheets "Google Sheets"` |
+| **Airtable** | `./scripts/add-connector.sh airbyte-airtable airbyte/source-airtable "Airtable"` |
+| **Amazon S3** | `./scripts/add-connector.sh airbyte-s3 airbyte/source-s3 "Amazon S3"` |
+
+---
+
+## Manual Method: Direct Database Insertion
+
+If you prefer to add connectors manually or the script doesn't work for your environment:
 
 ### Step 1: Find the Connector
 
-1. Visit the [Airbyte connectors directory](https://github.com/airbytehq/airbyte/tree/master/airbyte-integrations/connectors)
-2. Locate your desired connector (e.g., `source-google-analytics-data-api`)
-3. Note the Docker image name (usually `airbyte/source-{name}`)
+Browse available connectors:
+- **Airbyte Connector Catalog**: https://docs.airbyte.com/integrations/sources/
+- **GitHub Repository**: https://github.com/airbytehq/airbyte/tree/master/airbyte-integrations/connectors
 
-### Step 2: Add to values.yaml
-
-Add the connector configuration to your `values.yaml` file:
-
-```yaml
-console:
-  config:
-    # ... existing config ...
-
-    # Add custom connectors
-    customSources:
-      - id: "airbyte-google-analytics-source"
-        packageId: "airbyte/source-google-analytics-data-api"
-        packageType: "airbyte"
-        meta:
-          name: "Google Analytics (GA4)"
-          license: "MIT"
-          connectorSubtype: "api"
-        logoSvg: |
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-            <!-- Add your logo SVG here -->
-          </svg>
-        versions:
-          - "latest"
-        sortIndex: 100
-
-      - id: "airbyte-stripe-source"
-        packageId: "airbyte/source-stripe"
-        packageType: "airbyte"
-        meta:
-          name: "Stripe"
-          license: "MIT"
-          connectorSubtype: "api"
-        logoSvg: |
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-            <!-- Stripe logo SVG -->
-          </svg>
-        versions:
-          - "latest"
-        sortIndex: 95
-```
-
-### Step 3: Update Deployment
+### Step 2: Insert into Database
 
 ```bash
-helm upgrade jitsu . -f values.yaml -n jitsu --timeout 10m
+kubectl exec -n jitsu jitsu-postgresql-0 -- bash -c \
+  'export PGPASSWORD=jitsu123 && psql -U jitsu -d jitsu -c \
+  "INSERT INTO newjitsu.\"ConnectorPackage\" \
+   (id, \"packageId\", \"packageType\", meta) \
+   VALUES ('\''<connector-id>'\'', \
+           '\''<docker-image>'\'', \
+           '\''airbyte'\'', \
+           '\''{\"name\": \"<Display Name>\", \"license\": \"MIT\", \"connectorSubtype\": \"api\"}'\''::jsonb) \
+   ON CONFLICT (id) DO NOTHING;"'
 ```
 
-## Method 2: Add Connector via Database
+**Replace:**
+- `<connector-id>` - Unique ID (e.g., `airbyte-stripe`)
+- `<docker-image>` - Docker image name (e.g., `airbyte/source-stripe`)
+- `<Display Name>` - Name shown in UI (e.g., `Stripe`)
 
-Connectors are stored in the PostgreSQL database. You can add them directly:
-
-### Step 1: Connect to PostgreSQL
+### Step 3: Verify
 
 ```bash
-kubectl exec -it -n jitsu jitsu-postgresql-0 -- bash
+# List all connectors
+curl -s http://localhost:4000/api/sources | jq '.sources[] | {name: .meta.name, package: .packageId}'
+
+# Or check database directly
+kubectl exec -n jitsu jitsu-postgresql-0 -- bash -c \
+  'export PGPASSWORD=jitsu123 && psql -U jitsu -d jitsu -c \
+  "SELECT id, \"packageId\", meta->>'\''name'\'' as name FROM newjitsu.\"ConnectorPackage\";"'
 ```
 
-### Step 2: Access the Database
+---
 
-```bash
-PGPASSWORD=$(cat /opt/bitnami/postgresql/conf/.s.PGSQL.5432) psql -U postgres -d jitsu
-```
+## Database Schema
 
-### Step 3: Insert Connector
+The `ConnectorPackage` table structure:
 
 ```sql
--- Switch to the correct schema
-SET search_path TO newjitsu;
+Table "newjitsu.ConnectorPackage"
+   Column    |         Type          | Nullable |      Default
+-------------+-----------------------+----------+-------------------
+ id          | text                  | not null |
+ packageId   | text                  | not null | (Docker image)
+ packageType | text                  | not null | 'airbyte'::text
+ meta        | jsonb                 |          | (connector metadata)
+ logoSvg     | bytea                 |          | (optional logo)
+ createdAt   | timestamp(3)          | not null | CURRENT_TIMESTAMP
+ updatedAt   | timestamp(3)          | not null | CURRENT_TIMESTAMP
 
--- Insert Google Analytics connector
-INSERT INTO "Source" (
-  id,
-  "packageId",
-  "packageType",
-  meta,
-  "createdAt",
-  "updatedAt",
-  "sortIndex"
-) VALUES (
-  'airbyte-google-analytics-source',
-  'airbyte/source-google-analytics-data-api',
-  'airbyte',
-  '{"name": "Google Analytics (GA4)", "license": "MIT", "connectorSubtype": "api"}'::jsonb,
-  NOW(),
-  NOW(),
-  100
-);
-
--- Verify insertion
-SELECT id, "packageId", meta->>'name' FROM "Source" ORDER BY "sortIndex" DESC;
+Primary Key: id
 ```
 
-## Method 3: Add Connector via API
+**Required Fields:**
+- `id` - Unique identifier
+- `packageId` - Docker image (e.g., `airbyte/source-stripe`)
+- `packageType` - Always `'airbyte'` for Airbyte connectors
+- `meta` - JSON object with at minimum: `{"name": "Display Name"}`
 
-Use the Jitsu API to add connectors programmatically:
+**Optional meta Fields:**
+- `license` - License type (e.g., `"MIT"`)
+- `connectorSubtype` - Type: `"api"`, `"database"`, or `"file"`
+- `documentationUrl` - Link to connector docs
+
+---
+
+## Adding Multiple Connectors at Once
+
+Create a SQL file with multiple INSERTs:
+
+```sql
+-- connectors.sql
+INSERT INTO newjitsu."ConnectorPackage" (id, "packageId", "packageType", meta) VALUES
+  ('airbyte-stripe', 'airbyte/source-stripe', 'airbyte',
+   '{"name": "Stripe", "license": "MIT", "connectorSubtype": "api"}'::jsonb),
+
+  ('airbyte-postgres', 'airbyte/source-postgres', 'airbyte',
+   '{"name": "PostgreSQL", "license": "MIT", "connectorSubtype": "database"}'::jsonb),
+
+  ('airbyte-shopify', 'airbyte/source-shopify', 'airbyte',
+   '{"name": "Shopify", "license": "MIT", "connectorSubtype": "api"}'::jsonb)
+
+ON CONFLICT (id) DO NOTHING;
+```
+
+Execute:
 
 ```bash
-# Get your authentication token from the Jitsu console
-
-curl -X POST http://localhost:4000/api/sources \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "id": "airbyte-google-analytics-source",
-    "packageId": "airbyte/source-google-analytics-data-api",
-    "packageType": "airbyte",
-    "meta": {
-      "name": "Google Analytics (GA4)",
-      "license": "MIT",
-      "connectorSubtype": "api"
-    },
-    "logoSvg": "<svg>...</svg>",
-    "sortIndex": 100
-  }'
+kubectl exec -i -n jitsu jitsu-postgresql-0 -- bash -c \
+  'export PGPASSWORD=jitsu123 && psql -U jitsu -d jitsu' < connectors.sql
 ```
 
-## Common Airbyte Connectors
-
-Here are some popular Airbyte connectors and their package IDs:
-
-| Connector | Package ID | Description |
-|-----------|------------|-------------|
-| Google Analytics (GA4) | `airbyte/source-google-analytics-data-api` | Google Analytics 4 data |
-| Stripe | `airbyte/source-stripe` | Payment and billing data |
-| PostgreSQL | `airbyte/source-postgres` | PostgreSQL database |
-| MySQL | `airbyte/source-mysql` | MySQL database |
-| Google Ads | `airbyte/source-google-ads` | Google Ads campaign data |
-| Facebook Marketing | `airbyte/source-facebook-marketing` | Facebook Ads data |
-| GitHub | `airbyte/source-github` | GitHub repositories and events |
-| Shopify | `airbyte/source-shopify` | E-commerce data |
-| Salesforce | `airbyte/source-salesforce` | CRM data |
-| HubSpot | `airbyte/source-hubspot` | Marketing and CRM data |
-| Slack | `airbyte/source-slack` | Workspace messages and data |
-| Google Sheets | `airbyte/source-google-sheets` | Spreadsheet data |
-| Airtable | `airbyte/source-airtable` | Database data |
-| Mailchimp | `airbyte/source-mailchimp` | Email marketing data |
-| Intercom | `airbyte/source-intercom` | Customer messaging data |
-
-## Example: Adding Google Analytics Connector
-
-### Complete values.yaml Configuration
-
-```yaml
-console:
-  config:
-    seedUserEmail: "admin@jitsu.local"
-    seedUserPassword: "admin123"
-    disableSignup: false
-    nextauthUrl: "http://localhost:4000"
-    jitsuPublicUrl: "http://localhost:4000"
-
-    # Add Google Analytics connector
-    customSources:
-      - id: "airbyte-google-analytics-data-api"
-        packageId: "airbyte/source-google-analytics-data-api"
-        packageType: "airbyte"
-        meta:
-          name: "Google Analytics (GA4)"
-          license: "MIT"
-          connectorSubtype: "api"
-          documentationUrl: "https://docs.airbyte.com/integrations/sources/google-analytics-data-api"
-        logoSvg: |
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%">
-            <path fill="#F9AB00" d="M22.84 2.998v17.999a3 3 0 01-3 3H4.16a3 3 0 01-3-3V2.998a3 3 0 013-3h15.68a3 3 0 013 3z"/>
-            <path fill="#E37400" d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z"/>
-            <circle fill="#E37400" cx="18" cy="6.5" r="2"/>
-            <circle fill="#FFF" cx="6" cy="17.5" r="2"/>
-          </svg>
-        versions:
-          - "latest"
-          - "2.0.0"
-        sortIndex: 160
-```
-
-### Apply the Configuration
-
-```bash
-# Update your Helm release
-helm upgrade jitsu . -f examples/local-kind/values.yaml -n jitsu --timeout 10m
-
-# Wait for console pod to restart
-kubectl rollout status deployment/jitsu-console -n jitsu
-
-# Restart port-forward if needed
-kubectl port-forward -n jitsu svc/jitsu-console 4000:3000 &
-```
-
-### Verify the Connector
-
-1. Open http://localhost:4000
-2. Navigate to Sources/Connectors
-3. You should now see "Google Analytics (GA4)" in the list
-
-## Docker Image Requirements
-
-### Finding the Correct Image
-
-Airbyte connectors are published to Docker Hub:
-
-```bash
-# Search for a connector
-docker search airbyte/source-google-analytics
-
-# Pull the image to verify it exists
-docker pull airbyte/source-google-analytics-data-api:latest
-```
-
-### Image Naming Convention
-
-Airbyte uses this naming pattern:
-- **Source**: `airbyte/source-{connector-name}`
-- **Destination**: `airbyte/destination-{connector-name}`
-
-Examples:
-- `airbyte/source-google-analytics-data-api`
-- `airbyte/source-postgres`
-- `airbyte/destination-snowflake`
-
-## Connector Configuration
-
-### Required Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique identifier (e.g., `airbyte-google-analytics-source`) |
-| `packageId` | string | Docker image name (e.g., `airbyte/source-google-analytics-data-api`) |
-| `packageType` | string | Always `"airbyte"` for Airbyte connectors |
-| `meta.name` | string | Display name in UI |
-| `sortIndex` | number | Ordering (higher = appears first) |
-
-### Optional Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `meta.license` | string | License type (e.g., `"MIT"`, `"Apache-2.0"`) |
-| `meta.connectorSubtype` | string | Type: `"api"`, `"database"`, `"file"` |
-| `meta.documentationUrl` | string | Link to connector documentation |
-| `logoSvg` | string | SVG logo for UI display |
-| `versions` | array | Available versions (e.g., `["latest", "1.0.0"]`) |
+---
 
 ## Troubleshooting
 
 ### Connector Not Appearing in UI
 
 1. **Check database insertion**:
-   ```sql
-   SELECT id, "packageId", meta->>'name'
-   FROM newjitsu."Source"
-   WHERE "packageId" LIKE 'airbyte/%';
-   ```
+```bash
+kubectl exec -n jitsu jitsu-postgresql-0 -- bash -c \
+  'export PGPASSWORD=jitsu123 && psql -U jitsu -d jitsu -c \
+  "SELECT * FROM newjitsu.\"ConnectorPackage\";"'
+```
 
 2. **Verify API response**:
-   ```bash
-   curl -s http://localhost:4000/api/sources | jq '.sources[] | select(.packageId | contains("google-analytics"))'
-   ```
+```bash
+curl -s http://localhost:4000/api/sources | jq '.sources | length'
+# Should be more than 4
+```
 
-3. **Clear browser cache**: The UI might cache the connector list
+3. **Clear browser cache and refresh** the Jitsu UI
 
 ### Connector Configuration Fails
 
-1. **Check Docker image exists**:
-   ```bash
-   docker pull airbyte/source-google-analytics-data-api:latest
-   ```
+1. **Verify Docker image exists**:
+```bash
+docker pull airbyte/source-google-analytics-data-api:latest
+```
 
 2. **Check Syncctl logs**:
-   ```bash
-   kubectl logs -n jitsu -l app.kubernetes.io/component=syncctl --tail=100
-   ```
+```bash
+kubectl logs -n jitsu -l app.kubernetes.io/component=syncctl --tail=50
+```
 
-3. **Verify network access**: Ensure your cluster can pull Docker images from Docker Hub
+3. **Ensure network access** to Docker Hub from your cluster
 
-### Image Pull Errors
+### Duplicate ID Error
 
-If you see `ImagePullBackOff`:
+If you get a duplicate key error:
 
 ```bash
-# Check pod events
-kubectl describe pod -n jitsu {syncctl-pod-name}
-
-# Verify image exists
-docker pull airbyte/source-google-analytics-data-api:latest
-
-# Check if specific version is needed
-kubectl logs -n jitsu -l app.kubernetes.io/component=syncctl
+# Update existing connector instead
+kubectl exec -n jitsu jitsu-postgresql-0 -- bash -c \
+  'export PGPASSWORD=jitsu123 && psql -U jitsu -d jitsu -c \
+  "UPDATE newjitsu.\"ConnectorPackage\" \
+   SET \"packageId\" = '\''airbyte/source-stripe'\'', \
+       meta = '\''{\"name\": \"Stripe\"}'\''::jsonb \
+   WHERE id = '\''airbyte-stripe'\'';"'
 ```
 
-## Advanced Configuration
-
-### Adding Multiple Connectors at Once
-
-Create a `custom-connectors.yaml` file:
-
-```yaml
-customSources:
-  - id: "airbyte-google-analytics"
-    packageId: "airbyte/source-google-analytics-data-api"
-    packageType: "airbyte"
-    meta:
-      name: "Google Analytics (GA4)"
-    sortIndex: 160
-
-  - id: "airbyte-stripe"
-    packageId: "airbyte/source-stripe"
-    packageType: "airbyte"
-    meta:
-      name: "Stripe"
-    sortIndex: 200
-
-  - id: "airbyte-postgres"
-    packageId: "airbyte/source-postgres"
-    packageType: "airbyte"
-    meta:
-      name: "PostgreSQL"
-    sortIndex: 150
-```
-
-Then merge with your main values:
+### Remove a Connector
 
 ```bash
-helm upgrade jitsu . \
-  -f examples/local-kind/values.yaml \
-  -f custom-connectors.yaml \
-  -n jitsu
+kubectl exec -n jitsu jitsu-postgresql-0 -- bash -c \
+  'export PGPASSWORD=jitsu123 && psql -U jitsu -d jitsu -c \
+  "DELETE FROM newjitsu.\"ConnectorPackage\" WHERE id = '\''airbyte-stripe'\'';"'
 ```
 
-### Using Specific Versions
+---
 
-Instead of `latest`, pin to specific versions:
+## Docker Image Naming
 
-```yaml
-- id: "airbyte-google-analytics"
-  packageId: "airbyte/source-google-analytics-data-api"
-  versions:
-    - "2.0.0"  # Specific stable version
-    - "1.5.0"  # Alternative version
+Airbyte connectors follow this naming pattern:
+
+- **Sources**: `airbyte/source-{name}`
+- **Destinations**: `airbyte/destination-{name}`
+
+Examples:
+- `airbyte/source-google-analytics-data-api`
+- `airbyte/source-postgres`
+- `airbyte/source-stripe`
+- `airbyte/destination-snowflake`
+
+**Find connectors**:
+- Docker Hub: https://hub.docker.com/u/airbyte
+- GitHub: https://github.com/airbytehq/airbyte/tree/master/airbyte-integrations/connectors
+
+---
+
+## Technical Details
+
+### How Jitsu Loads Connectors
+
+The `/api/sources` endpoint combines connectors from:
+
+1. **Hardcoded sources** ([source code](https://github.com/jitsucom/jitsu/blob/bc98f9c575eddb77e65716e7823cb65520b6246c/webapps/console/pages/api/sources/index.ts#L101))
+2. **Database query**:
+```typescript
+const sources = await db.prisma().connectorPackage.findMany()
 ```
 
-## References
+This means connectors added to the database appear immediately without restarting Jitsu!
 
-- [Airbyte Connector Catalog](https://docs.airbyte.com/integrations/)
-- [Airbyte GitHub Repository](https://github.com/airbytehq/airbyte)
-- [Airbyte Docker Hub](https://hub.docker.com/u/airbyte)
-- [Jitsu Documentation](https://jitsu.com/docs)
+### Connector Execution
+
+When you create a sync:
+1. Jitsu Console sends the `packageId` to Syncctl
+2. Syncctl pulls the Docker image: `docker pull airbyte/source-{name}`
+3. Syncctl runs the container with your configuration
+4. Data flows from source → Syncctl → Destination (ClickHouse, etc.)
+
+---
+
+## Resources
+
+- **Airbyte Connector Catalog**: https://docs.airbyte.com/integrations/
+- **Airbyte GitHub**: https://github.com/airbytehq/airbyte
+- **Airbyte Docker Hub**: https://hub.docker.com/u/airbyte
+- **Jitsu Documentation**: https://jitsu.com/docs
+- **Jitsu Source Code**: https://github.com/jitsucom/jitsu
+
+---
 
 ## Next Steps
 
 After adding connectors:
-1. Configure the connector in Jitsu UI
-2. Set up data sources with credentials
-3. Create sync jobs to destinations
-4. Monitor sync status in the Jitsu dashboard
+
+1. **Refresh the Jitsu UI** - Go to http://localhost:4000/jitsu/services
+2. **Create a new source** - Click on your newly added connector
+3. **Configure credentials** - Follow the Airbyte connector documentation
+4. **Set up sync** - Choose destination and sync schedule
+5. **Monitor status** - Check sync logs in Jitsu dashboard
+
+For connector-specific configuration, refer to the [Airbyte documentation](https://docs.airbyte.com/integrations/) for each connector.
