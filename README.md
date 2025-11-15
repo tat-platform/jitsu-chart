@@ -31,18 +31,15 @@ kind create cluster --config examples/local-kind/kind-config.yaml
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
 kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=90s
 
-# Deploy MongoDB (required for ARM64/Apple Silicon)
-kubectl apply -f examples/local-kind/mongodb-deployment.yaml
-
-# Install Jitsu
+# Install Jitsu (MongoDB will be deployed automatically with ARM64 support)
 helm dependency update
 helm install jitsu . -f examples/local-kind/values.yaml --create-namespace --namespace jitsu --timeout 10m
 
-# Setup local access
-./examples/local-kind/setup-access.sh
+# Setup access via port-forward
+kubectl port-forward -n jitsu svc/jitsu-console 4000:3000 &
 ```
 
-Access at: **http://jitsu.local** (credentials: `admin@jitsu.local` / `admin123`)
+Access at: **http://localhost:4000** (credentials: `admin@jitsu.local` / `admin123`)
 
 For complete local setup instructions, see [Local Setup Guide](docs/local-setup.md).
 
@@ -100,11 +97,7 @@ See the [Production Deployment Guide](docs/production-deployment.md#dependencies
 
 ### ⚠️ ARM64 / Apple Silicon
 
-The Bitnami MongoDB images don't support ARM64. For local development on Apple Silicon, use the custom MongoDB deployment:
-
-```bash
-kubectl apply -f examples/local-kind/mongodb-deployment.yaml
-```
+The Bitnami MongoDB images don't support ARM64. The local setup automatically uses the official MongoDB image instead, configured in `examples/local-kind/values.yaml`. No additional steps needed!
 
 See [Local Setup Guide](docs/local-setup.md) for complete instructions.
 
@@ -121,9 +114,9 @@ jitsu-chart/
 ├── examples/                      # Example configurations
 │   └── local-kind/               # Local Kind setup
 │       ├── kind-config.yaml      # Kind cluster config
-│       ├── values.yaml           # Local values
-│       ├── mongodb-deployment.yaml
-│       └── setup-access.sh       # Quick setup script
+│       ├── values.yaml           # Local values (includes ARM64 MongoDB)
+│       ├── setup-access.sh       # Quick setup script
+│       └── README.md             # Quick reference
 └── scripts/                       # Helper scripts
     └── token-generator.py        # Token generation
 ```

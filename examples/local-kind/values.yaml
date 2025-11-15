@@ -14,6 +14,9 @@ console:
     seedUserEmail: "admin@jitsu.local"
     seedUserPassword: "admin123"
     disableSignup: false  # Allow signup for local testing
+    nextauthUrl: "http://localhost:4000"  # For local port-forward access
+    jitsuPublicUrl: "http://localhost:4000"  # For local port-forward access
+    jitsuIngestPublicUrl: "http://localhost:4000"  # For local port-forward access
   resources:
     requests:
       cpu: 100m
