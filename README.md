@@ -47,6 +47,7 @@ For complete local setup instructions, see [Local Setup Guide](docs/local-setup.
 
 - **[Local Setup Guide](docs/local-setup.md)** - Complete guide for running Jitsu locally on Kind/OrbStack
 - **[Production Deployment Guide](docs/production-deployment.md)** - Production configuration, upgrading, and best practices
+- **[Adding Airbyte Connectors](docs/adding-airbyte-connectors.md)** - How to add custom Airbyte connectors (Google Analytics, Stripe, etc.)
 
 ## Key Features
 
