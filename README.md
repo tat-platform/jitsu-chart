@@ -1,10 +1,11 @@
 # Jitsu Helm Chart
 
-[:warning: Read this before upgrading](#upgrading)
+Official Helm chart for deploying [Jitsu](https://jitsu.com) - an open-source data ingestion and event streaming platform.
 
-[:warning: Read this before using in production](#bitnami)
+## Quick Start
 
-## TL;DR
+### Production Deployment
+
 ```bash
 helm install jitsu oci://registry-1.docker.io/stafftasticcharts/jitsu -f-<<EOF
 ingress:
@@ -16,206 +17,128 @@ console:
 EOF
 ```
 
-For a production deployment it is recommended to read through `values.yaml` and make conscious
-decisions in order to ensure the deployment is secure, reliable and scalable. Dependencies are
-minimally configured and do not provide high-availability out of the box.
+For production deployments, see [Production Deployment Guide](docs/production-deployment.md).
 
-## Basic Configuration
-`values.yaml`:
-```yaml
-postgresql:
-  auth:
-    password: "changeMe"
-mongodb:
-  auth:
-    passwords: ["changeMe"]
-clickhouse:
-  auth:
-    password: "changeMe"
+### Local Development (Kind/OrbStack)
 
-ingress:
-  className: "nginx"
-  annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt"
-  host: "jitsu.example.com"
-  tls: true
-
-console:
-  config:
-    # Populate with GitHub OAuth client credentials
-    githubClientId: "..."
-    githubClientSecret: "..."
-```
-
-Once you have logged in, set `console.config.disableSignup` to `true` to prevent anyone with a
-GitHub account from using your instance.
-
-See [values.yaml](values.yaml) for more configuration options.
-
-## Dependencies
-This chart deploys the following dependencies by default in order to provide an easy out-of-the-box
-experience, however for production it is recommended you deploy these separately:
-
-* Postgres
-* Kafka
-* MongoDB
-* Clickhouse
-
-In order to use your own instances of these, disable them in with their respective options:
-```yaml
-postgresql:
-  enabled: false
-kafka:
-  enabled: false
-mongodb:
-  enabled: false
-clickhouse:
-  enabled: false
-```
-
-Then supply the connection details in the `config` section (or specifically per service):
-```yaml
-config:
-  databaseUrl: "postgres://..."
-  kafkaBootstrapServers: "kafka:9092,..."
-  mongodbUrl: "mongodb://..."
-  clickhouseHttpHost: "...:8123"
-  clickhouseUsername: "..."
-  clickhousePassword: "..."
-```
-
-## Configuration Options
-The individual services' configuration corresponds to the environment variables they accept. For
-services where every environment variable is prefixed with the service name, the prefix is stripped,
-otherwise the keys are naïvely converted to camel case, with each letter that would follow an
-underscore capitalized.
-
-Some values, in particular those that contain sensitive information or connection information, also
-allow you to reference a secret or configmap. In `values.yaml` these are suffixed with `From`. E.g.
-to read the database URL (`config.databaseUrl`) from a secret, set it as you would an environment
-variable:
-
-```yaml
-config:
-  databaseUrlFrom:
-    secretKeyRef:
-      name: database-secret-name
-      key: database-url-key
-```
-
-For the full list of variables that support this syntax, see `values.yaml`.
-
-Many of the configuration values will be set automatically when left empty, such as connection
-parameters for services deployed by the subcharts, tokens and URLs for inter-service communication
-and values that can be directly derived from other values. When this is the case it is noted in the
-comments above the value. Links are also provided to relevant upstream documentation.
-
-Some configuration values contain structured data. For these you can either specify them as a string
-as you would in an environment variable, or as a dict that will be converted to the appropriate
-string representation by the chart.
-
-One notable example of this, and the only exception to the 1:1 mapping of environment variables to
-camel cased keys, is the `bulker.config.destination` value. The Bulker takes an arbitrary number of
-destination environment variables in the form of `BULKER_DESTINATION_*`. These are represented in
-`values.yaml` as a dict of either strings or dicts.
-
-Example:
-
-```yaml
-bulker:
-  config:
-    destination:
-      postgres:
-        id: postgres
-      s3: '{"id":"s3"}'
-```
-
-Becomes:
+For local development on Kind using OrbStack:
 
 ```bash
-BULKER_DESTINATION_POSTGRES='{"id":"postgres"}'
-BULKER_DESTINATION_S3='{"id":"s3"}'
+# Create Kind cluster
+kind create cluster --config examples/local-kind/kind-config.yaml
+
+# Install Nginx Ingress
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=90s
+
+# Deploy MongoDB (required for ARM64/Apple Silicon)
+kubectl apply -f examples/local-kind/mongodb-deployment.yaml
+
+# Install Jitsu
+helm dependency update
+helm install jitsu . -f examples/local-kind/values.yaml --create-namespace --namespace jitsu --timeout 10m
+
+# Setup local access
+./examples/local-kind/setup-access.sh
 ```
 
-If you prefer to configure one or more services manually through the environment, you can disable
-the configuration abstractions by setting `config.enabled` to `false`, either at the top-level or
-service-level.
+Access at: **http://jitsu.local** (credentials: `admin@jitsu.local` / `admin123`)
 
-## Inter-Service Authentication
-The different Jitsu services communicate with each other using tokens and corresponding salted
-hashes to verify. These can be managed manually, however by default they are generated by a job and
-stored in a secret. Each service then gets access to the tokens they need through the environment.
+For complete local setup instructions, see [Local Setup Guide](docs/local-setup.md).
 
-In order to disable this, set `tokenGenerator.enabled` to `false` and supply the tokens manually.
+## Documentation
 
-## Running Connectors in a Different Namespace
-By default syncctl runs connectors in the same namespace as the rest of the Jitsu services. If you
-wish to run these ephemeral and to some degree user-controlled workloads in a separate namespace you
-can set `syncctl.config.kubernetesNamespace` to the desired namespace, and the chart will create the
-namespace, service proxies for the bulker and databse, and the necessary RBAC resources for you.
+- **[Local Setup Guide](docs/local-setup.md)** - Complete guide for running Jitsu locally on Kind/OrbStack
+- **[Production Deployment Guide](docs/production-deployment.md)** - Production configuration, upgrading, and best practices
 
-## Ensuring Idempotence
-If using tools that render the chart without access to the cluster, such as Argo CD, set
-`kafka.kraft.clusterId` to a random string to ensure it's not regnerated every time. This is only
-necessary if you're using the Kafka subchart.
+## Key Features
 
-## Bitnami
-This chart depends on Helm charts from [Bitnami Helm Charts](https://github.com/bitnami/charts).
-The intended use of these included dependencies is to provide an immediately functioning Jitsu
-deployment for use in evaluation, testing and development.
+- **Complete Jitsu Stack**: Console, Ingest, Rotor, Bulker, and Syncctl services
+- **Bundled Dependencies**: PostgreSQL, MongoDB, Kafka, ClickHouse, and Redis (optional)
+- **Flexible Configuration**: Environment-based config with secrets support
+- **ARM64 Support**: Optimized for Apple Silicon with custom MongoDB deployment
+- **Production Ready**: High-availability options, resource management, and scaling
 
-Bitnami is retiring its public catalog of Helm charts and container images, meaning none of these
-components will receive updates. We have already switched over to `bitnamilegacy` images, which will
-remain available, but again receive no updates.
+## Components
 
-**These dependencies should not be used in production, will not receive updates and will be removed
-from the chart.**
+| Component | Description |
+|-----------|-------------|
+| Console | Web-based management UI |
+| Ingest | Event collection API |
+| Rotor | Event routing engine |
+| Bulker | Data loading service |
+| Syncctl | Synchronization management |
+| PostgreSQL | Metadata storage |
+| MongoDB | Document storage |
+| ClickHouse | Analytics database |
+| Kafka | Message queue |
 
-See [Dependencies](#dependencies) for instructions on how to provide connection details to your own
-externally managed dependencies.
+## Requirements
 
-See https://github.com/bitnami/charts/issues/35164 for information on the changes to Bitnami's
-public catalog.
+- Kubernetes 1.20+
+- Helm 3.0+
+- Persistent Volume support (for databases)
 
-## Upgrading
-It's not necessary to go through all intermediate versions when upgrading, however if upgrading to a
-version greater or equal to one mentioned below, additional steps may be required. This generally
-only encompasses breaking changes within the chart itself. New versions of Jitsu may still introduce
-breaking changes not covered here.
+## Configuration
 
-### v2.0.0
-This release sets the default ClickHouse database to `newjitsu_metrics` as some components did not
-behave correctly with the old default (`default`). If you have data you wish to keep in the old
-`default` database, you may need to manually migrate this.
+See [values.yaml](values.yaml) for all available configuration options.
 
-Kafka is now configured with only a single controller replica by default. It is recommended to
-explicitly set this to 3 replicas if you are upgrading and using the default configuration.
+Key configuration areas:
+- **Ingress**: Configure hostnames and TLS
+- **Authentication**: Set up OAuth providers or seed users
+- **Resources**: Adjust CPU/memory limits
+- **Dependencies**: Configure or disable bundled services
+- **Storage**: Configure persistent volume sizes
 
-ClickHouse is now configured with only a single shard and single replica by default. It is
-recommended to explicitly set this to 2 shards and 3 replicas if you are upgrading and using the
-default configuration.
+## Important Notes
 
-### v1.6.0
-This release splits the `config.clickhouseHost` and `config.clickhouseHostFrom` parameters up into
-separate parameters for HTTP and TCP, as different components require different protocols. If you
-were using these parameters, simply set `config.clickhouseHttpHost` and `config.clickhouseTcpHost`
-(or the equivalent `...From` variants) making sure to set the correct port. If you were setting this
-on a per-component basis or letting the chart configure it for you no action is needed.
+### ⚠️ Bitnami Dependencies
 
-ClickHouse is now also set up to use Zookeeper instead of ClickHouse Keeper as it is currently
-broken in Bitnami's Helm chart for ClickHouse: https://github.com/bitnami/charts/issues/15935. If
-you had a working configuration using ClickHouse Keeper, you will need to explicitly enable it and
-disable Zookeeper to avoid switching over to a fresh Zookeeper deployment.
+This chart uses Bitnami Helm charts for dependencies (PostgreSQL, Kafka, MongoDB, ClickHouse). Bitnami has retired their public catalog, so these dependencies won't receive updates. **For production use, deploy these services separately.**
 
-### v1.4.0
-This release disables the Redis deployment by default as it is no longer required by Jitsu v2.5.0.
-If you have functions persistent storage or identity stitching data you wish to keep, set
-`redis.enabled` to `true` to enable "double read" mode as outlined in the [release notes for Jitsu
-v2.5.0](https://github.com/jitsucom/jitsu/releases/tag/jitsu2-v2.5.0).
+See the [Production Deployment Guide](docs/production-deployment.md#dependencies) for details.
 
-### v1.1.0
-The Rotor is now also protected with an auth token when using the token generator (enabled by
-default). This means that if you have an old token secret you will either need to add values for the
-Rotor to the secret or delete the secret and let the token generator create a new one upon
-deployment. Deleting the secret will also use the uniform format across services introduced in Jitsu
-v2.4.5.
+### ⚠️ ARM64 / Apple Silicon
+
+The Bitnami MongoDB images don't support ARM64. For local development on Apple Silicon, use the custom MongoDB deployment:
+
+```bash
+kubectl apply -f examples/local-kind/mongodb-deployment.yaml
+```
+
+See [Local Setup Guide](docs/local-setup.md) for complete instructions.
+
+## Repository Structure
+
+```
+jitsu-chart/
+├── Chart.yaml                      # Helm chart metadata
+├── values.yaml                     # Default configuration values
+├── templates/                      # Kubernetes manifests
+├── docs/                          # Documentation
+│   ├── local-setup.md            # Local development guide
+│   └── production-deployment.md  # Production guide
+├── examples/                      # Example configurations
+│   └── local-kind/               # Local Kind setup
+│       ├── kind-config.yaml      # Kind cluster config
+│       ├── values.yaml           # Local values
+│       ├── mongodb-deployment.yaml
+│       └── setup-access.sh       # Quick setup script
+└── scripts/                       # Helper scripts
+    └── token-generator.py        # Token generation
+```
+
+## Version
+
+- **Chart Version**: 0.0.0 (development)
+- **App Version**: 2.11.0
+
+## License
+
+See [LICENSE](LICENSE)
+
+## Links
+
+- [Jitsu Website](https://jitsu.com)
+- [Jitsu GitHub](https://github.com/jitsucom/jitsu)
+- [Helm Chart Repository](https://github.com/stafftastic/jitsu-chart)
