@@ -16,7 +16,22 @@
       "Bash(curl:*)",
       "Bash(pkill:*)",
       "Bash(chmod:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(helm show values:*)",
+      "Bash(kubectl delete:*)",
+      "Bash(lsof:*)",
+      "Bash(docker inspect:*)",
+      "Bash(kubectl port-forward:*)",
+      "Bash(kubectl exec:*)",
+      "Bash(ping:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(timeout 10 docker exec:*)",
+      "Bash(brew list:*)",
+      "Bash(docker port:*)",
+      "Bash(kubectl rollout status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
