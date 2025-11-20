@@ -34,13 +34,25 @@ kubectl exec -n jitsu jitsu-postgresql-0 -- bash -c \
 ### Verify
 
 ```bash
-# Check via API
-curl -s http://localhost:4000/api/sources | jq '.sources[].meta.name'
+# List all connector names
+curl -s http://localhost:4000/api/sources | jq -r '.sources[] | .meta.name' | sort
 
-# You should now see 5 connectors including "Google Analytics (GA4)"
+# Expected output (shows 5 connectors):
+# Attio
+# Firebase
+# Google Analytics (GA4)
+# Linear
+# MongoDb (alternative version)
+
+# Or view detailed information
+curl -s http://localhost:4000/api/sources | jq '.sources[] | {name: .meta.name, id: .id}'
 ```
 
-**Access in UI:** http://localhost:4000/jitsu/services (refresh the page)
+**Access in UI:**
+- All connectors: http://localhost:4000/jitsu/services
+- Direct link: http://localhost:4000/jitsu/services?id=new&packageType=airbyte&packageId=airbyte%2Fsource-google-analytics-data-api
+
+> **Note**: Refresh the page if you don't see new connectors immediately.
 
 ---
 
@@ -232,6 +244,80 @@ Execute:
 kubectl exec -i -n jitsu jitsu-postgresql-0 -- bash -c \
   'export PGPASSWORD=jitsu123 && psql -U jitsu -d jitsu' < connectors.sql
 ```
+
+---
+
+## Testing & Verification
+
+After adding connectors, verify they're working correctly:
+
+### 1. Check Connector Count
+
+```bash
+# Count total connectors (should increase after adding)
+curl -s http://localhost:4000/api/sources | jq '.sources | length'
+
+# Example output: 7 (4 default + 3 added)
+```
+
+### 2. List All Connectors
+
+```bash
+# List with names and IDs
+curl -s http://localhost:4000/api/sources | jq -r '.sources[] | "\(.id) - \(.meta.name)"' | sort
+
+# Example output:
+# airbyte-hubspot - HubSpot
+# airbyte-postgres - PostgreSQL
+# airbyte-stripe - Stripe
+# external-linear-source - Linear
+# jitsu-attio-source - Attio
+# jitsu-firebase-source - Firebase
+# jitsu-mongodb-source - MongoDb (alternative version)
+```
+
+### 3. Verify Database Entries
+
+```bash
+# Query the database directly
+kubectl exec -n jitsu jitsu-postgresql-0 -- bash -c \
+  'export PGPASSWORD=jitsu123 && psql -U jitsu -d jitsu -c \
+  "SELECT id, \"packageId\", meta->>'\''name'\'' as name
+   FROM newjitsu.\"ConnectorPackage\"
+   ORDER BY id;"'
+
+# Example output:
+#        id        |        packageId        |    name
+# ------------------+-------------------------+------------
+#  airbyte-hubspot  | airbyte/source-hubspot  | HubSpot
+#  airbyte-postgres | airbyte/source-postgres | PostgreSQL
+#  airbyte-stripe   | airbyte/source-stripe   | Stripe
+```
+
+### 4. Test in UI
+
+1. Open http://localhost:4000/jitsu/services
+2. Click "Add Service"
+3. You should see your newly added connectors in the list
+4. Click on a connector to verify its configuration page loads
+
+### 5. Test Direct URL
+
+Access connector directly (replace `airbyte/source-stripe` with your connector):
+
+```bash
+# URL encode the packageId (/ becomes %2F)
+PACKAGE_ID="airbyte%2Fsource-stripe"
+echo "http://localhost:4000/jitsu/services?id=new&packageType=airbyte&packageId=$PACKAGE_ID"
+
+# Or use the helper from add-connector.sh output
+```
+
+**Success Indicators:**
+- ✅ Connector appears in API response
+- ✅ Connector shows in database query
+- ✅ Connector visible in UI service list
+- ✅ Direct URL loads connector configuration page
 
 ---
 
