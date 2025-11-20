@@ -88,9 +88,10 @@ echo ""
 
 # Check MongoDB
 echo "7️⃣ Testing MongoDB connection..."
-if kubectl get pod -n jitsu jitsu-mongodb-0 &>/dev/null; then
-    if kubectl exec -n jitsu jitsu-mongodb-0 -- mongosh --quiet --eval "db.version()" &>/dev/null; then
-        MONGO_VERSION=$(kubectl exec -n jitsu jitsu-mongodb-0 -- mongosh --quiet --eval "db.version()")
+MONGO_POD=$(kubectl get pod -n jitsu -l app.kubernetes.io/name=mongodb -o name 2>/dev/null | head -1)
+if [ -n "$MONGO_POD" ]; then
+    if kubectl exec -n jitsu "$MONGO_POD" -- mongosh --quiet --eval "db.version()" &>/dev/null 2>&1; then
+        MONGO_VERSION=$(kubectl exec -n jitsu "$MONGO_POD" -- mongosh --quiet --eval "db.version()" 2>/dev/null)
         echo "✅ MongoDB connected (version: $MONGO_VERSION)"
     else
         echo "⚠️  MongoDB pod exists but connection test failed"
@@ -103,7 +104,7 @@ echo ""
 # Check PostgreSQL
 echo "8️⃣ Testing PostgreSQL connection..."
 if kubectl get pod -n jitsu jitsu-postgresql-0 &>/dev/null; then
-    if kubectl exec -n jitsu jitsu-postgresql-0 -- bash -c "PGPASSWORD=jitsu123 psql -U postgres -c 'SELECT version();'" &>/dev/null; then
+    if kubectl exec -n jitsu jitsu-postgresql-0 -- bash -c "PGPASSWORD=jitsu123 psql -U postgres -c 'SELECT 1;'" &>/dev/null 2>&1; then
         echo "✅ PostgreSQL connected"
     else
         echo "⚠️  PostgreSQL pod exists but connection test failed"

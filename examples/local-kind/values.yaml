@@ -146,6 +146,7 @@ ingest:
 postgresql:
   enabled: true
   auth:
+    postgresPassword: "jitsu123"
     password: "jitsu123"
     database: "jitsu"
   primary:
