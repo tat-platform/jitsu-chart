@@ -35,6 +35,44 @@ Then open **http://localhost:4000** in your browser.
 
 **Note**: Due to OrbStack/Kind limitations on macOS, port 80 routing doesn't work reliably. We use port-forwarding to port 4000 instead.
 
+## Quick Reference
+
+### Application URLs (via port-forward)
+- **Console UI**: http://localhost:4000
+- **Ingest API**: http://localhost:4000/api/s/s2s/track
+- **Health Check**: http://localhost:4000/api/healthcheck
+
+### Service Ports (inside cluster)
+- **Console**: 3000
+- **Ingest**: 3000
+- **Bulker**: 3042
+- **Rotor**: 3401
+- **Syncctl**: 3043
+
+### Database Ports (port-forward for external access)
+```bash
+# PostgreSQL
+kubectl port-forward -n jitsu svc/jitsu-postgresql 5432:5432 &
+# Connection: postgresql://postgres:jitsu123@localhost:5432/jitsu
+
+# MongoDB
+kubectl port-forward -n jitsu svc/jitsu-mongodb 27017:27017 &
+# Connection: mongodb://jitsu:jitsu123@localhost:27017/jitsu?authSource=admin
+
+# ClickHouse
+kubectl port-forward -n jitsu svc/jitsu-clickhouse 8123:8123 9000:9000 &
+# HTTP: http://default:jitsu123@localhost:8123/
+# TCP: localhost:9000
+
+# Kafka
+kubectl port-forward -n jitsu svc/jitsu-kafka 9092:9092 &
+# Bootstrap: localhost:9092
+
+# Redis
+kubectl port-forward -n jitsu svc/jitsu-redis-master 6379:6379 &
+# Connection: redis-cli -h localhost -p 6379 -a jitsu123
+```
+
 ## Complete Documentation
 
 See the [Local Setup Guide](../../docs/guides/local-setup.md) for complete instructions, troubleshooting, and configuration details.

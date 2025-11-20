@@ -78,9 +78,20 @@ Then open: **http://localhost:4000**
 
 ### API Endpoints
 
-- **Console**: http://jitsu.local/
-- **Ingest API**: http://jitsu.local/api/
-- **Bulker API**: Accessible via internal services
+When using port-forward to localhost:4000:
+
+- **Console UI**: http://localhost:4000
+- **Ingest API**: http://localhost:4000/api/s/s2s/track
+- **Console API**: http://localhost:4000/api/
+- **Health Check**: http://localhost:4000/api/healthcheck
+
+Direct service endpoints (inside cluster):
+
+- **Console**: http://jitsu-console.jitsu.svc.cluster.local:3000
+- **Ingest**: http://jitsu-ingest.jitsu.svc.cluster.local:3000
+- **Bulker**: http://jitsu-bulker.jitsu.svc.cluster.local:3042
+- **Rotor**: http://jitsu-rotor.jitsu.svc.cluster.local:3401
+- **Syncctl**: http://jitsu-syncctl.jitsu.svc.cluster.local:3043
 
 ## Verifying the Deployment
 
@@ -129,30 +140,71 @@ Dependencies also use reduced resources for local development.
 ## Database Credentials
 
 ### PostgreSQL
-- Host: `jitsu-postgresql.jitsu.svc.cluster.local`
-- Port: `5432`
-- Database: `jitsu`
-- Username: `postgres`
-- Password: `jitsu123`
+- **Host**: `jitsu-postgresql.jitsu.svc.cluster.local`
+- **Port**: `5432`
+- **Database**: `jitsu`
+- **Username**: `postgres`
+- **Password**: `jitsu123`
+- **Connection String**: `postgresql://postgres:jitsu123@jitsu-postgresql.jitsu.svc.cluster.local:5432/jitsu`
+
+**Port-forward for external access:**
+```bash
+kubectl port-forward -n jitsu svc/jitsu-postgresql 5432:5432 &
+# Then connect to: postgresql://postgres:jitsu123@localhost:5432/jitsu
+```
 
 ### MongoDB
-- Host: `jitsu-mongodb.jitsu.svc.cluster.local`
-- Port: `27017`
-- Username: `jitsu`
-- Password: `jitsu123`
-- Database: `jitsu`
-- Root Username: `root`
-- Root Password: `root123`
+- **Host**: `jitsu-mongodb.jitsu.svc.cluster.local`
+- **Port**: `27017`
+- **Username**: `jitsu`
+- **Password**: `jitsu123`
+- **Database**: `jitsu`
+- **Root Username**: `root`
+- **Root Password**: `root123`
+- **Connection String**: `mongodb://jitsu:jitsu123@jitsu-mongodb.jitsu.svc.cluster.local:27017/jitsu?authSource=admin`
+
+**Port-forward for external access:**
+```bash
+kubectl port-forward -n jitsu svc/jitsu-mongodb 27017:27017 &
+# Then connect to: mongodb://jitsu:jitsu123@localhost:27017/jitsu?authSource=admin
+```
 
 ### ClickHouse
-- HTTP Host: `jitsu-clickhouse.jitsu.svc.cluster.local:8123`
-- TCP Host: `jitsu-clickhouse.jitsu.svc.cluster.local:9000`
-- Username: `default`
-- Password: `jitsu123`
-- Database: `newjitsu_metrics`
+- **HTTP Host**: `jitsu-clickhouse.jitsu.svc.cluster.local`
+- **HTTP Port**: `8123`
+- **TCP Port**: `9000`
+- **Username**: `default`
+- **Password**: `jitsu123`
+- **Database**: `newjitsu_metrics`
+- **HTTP URL**: `http://default:jitsu123@jitsu-clickhouse.jitsu.svc.cluster.local:8123/`
+
+**Port-forward for external access:**
+```bash
+kubectl port-forward -n jitsu svc/jitsu-clickhouse 8123:8123 9000:9000 &
+# HTTP: http://default:jitsu123@localhost:8123/
+# TCP: clickhouse-client --host localhost --port 9000 --user default --password jitsu123
+```
 
 ### Kafka
-- Bootstrap Servers: `jitsu-kafka.jitsu.svc.cluster.local:9092`
+- **Bootstrap Servers**: `jitsu-kafka.jitsu.svc.cluster.local:9092`
+- **Protocol**: PLAINTEXT (no authentication for local dev)
+
+**Port-forward for external access:**
+```bash
+kubectl port-forward -n jitsu svc/jitsu-kafka 9092:9092 &
+# Then connect to: localhost:9092
+```
+
+### Redis
+- **Host**: `jitsu-redis-master.jitsu.svc.cluster.local`
+- **Port**: `6379`
+- **Password**: `jitsu123`
+
+**Port-forward for external access:**
+```bash
+kubectl port-forward -n jitsu svc/jitsu-redis-master 6379:6379 &
+# Then connect: redis-cli -h localhost -p 6379 -a jitsu123
+```
 
 ## Troubleshooting
 
