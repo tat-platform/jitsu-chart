@@ -37,7 +37,7 @@ Then open **http://localhost:4000** in your browser.
 
 ## Complete Documentation
 
-See the [Local Setup Guide](../../docs/local-setup.md) for complete instructions, troubleshooting, and configuration details.
+See the [Local Setup Guide](../../docs/guides/local-setup.md) for complete instructions, troubleshooting, and configuration details.
 
 ## Key Configuration
 

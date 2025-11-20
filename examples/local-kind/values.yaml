@@ -187,11 +187,38 @@ kafka:
 # MongoDB configuration (disabled - using external MongoDB)
 # The bitnami/bitnamilegacy images don't have ARM64 support
 mongodb:
-  enabled: false
-
-# Use external MongoDB connection (we'll deploy a simple one manually)
-config:
-  mongodbUrl: "mongodb://admin:jitsu123@mongodb.jitsu.svc.cluster.local:27017/jitsu?authSource=admin"
+  enabled: true
+  image:
+    registry: docker.io
+    repository: mongo
+    tag: "7.0.15"
+  auth:
+    enabled: true
+    rootPassword: "root123"
+    usernames: ["jitsu"]
+    passwords: ["jitsu123"]
+    databases: ["jitsu"]
+  architecture: standalone
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 999
+    runAsGroup: 999
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+  podSecurityContext:
+    enabled: true
+    fsGroup: 999
+    fsGroupChangePolicy: "OnRootMismatch"
+  persistence:
+    enabled: true
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 
 # ClickHouse configuration (simplified for local)
 clickhouse:

@@ -32,16 +32,9 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main
 kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=90s
 ```
 
-### 3. Deploy MongoDB
+### 3. Install Jitsu
 
-The Bitnami MongoDB charts don't support ARM64 (Apple Silicon), so we use a custom MongoDB deployment:
-
-```bash
-kubectl apply -f examples/local-kind/mongodb-deployment.yaml
-kubectl wait --for=condition=ready pod -l app=mongodb -n jitsu --timeout=120s
-```
-
-### 4. Install Jitsu
+MongoDB is configured to use the official mongo:7.0.15 image for ARM64 compatibility:
 
 ```bash
 # Update Helm dependencies
@@ -51,7 +44,7 @@ helm dependency update
 helm install jitsu . -f examples/local-kind/values.yaml --create-namespace --namespace jitsu --timeout 10m
 ```
 
-### 5. Setup Local Access
+### 4. Setup Local Access
 
 Run the setup script to add the DNS entry and verify the deployment:
 
@@ -67,17 +60,21 @@ echo "127.0.0.1 jitsu.local" | sudo tee -a /etc/hosts
 
 ## Accessing Jitsu
 
-### Web Console
+### Web Console (via Port Forward)
 
-Open your browser and navigate to:
+The recommended way to access Jitsu locally is via port-forward:
 
+```bash
+kubectl port-forward -n jitsu svc/jitsu-console 4000:3000 &
 ```
-http://jitsu.local
-```
+
+Then open: **http://localhost:4000**
 
 **Default Login Credentials:**
 - Email: `admin@jitsu.local`
 - Password: `admin123`
+
+> **Note**: Port 80 doesn't work reliably on macOS with OrbStack/Kind, so we use port-forward to port 4000
 
 ### API Endpoints
 
@@ -139,12 +136,13 @@ Dependencies also use reduced resources for local development.
 - Password: `jitsu123`
 
 ### MongoDB
-- Host: `mongodb.jitsu.svc.cluster.local`
+- Host: `jitsu-mongodb.jitsu.svc.cluster.local`
 - Port: `27017`
-- Username: `admin`
+- Username: `jitsu`
 - Password: `jitsu123`
 - Database: `jitsu`
-- Auth Source: `admin`
+- Root Username: `root`
+- Root Password: `root123`
 
 ### ClickHouse
 - HTTP Host: `jitsu-clickhouse.jitsu.svc.cluster.local:8123`
@@ -185,7 +183,7 @@ kubectl describe ingress -n jitsu jitsu
 Verify MongoDB is running and accessible:
 
 ```bash
-kubectl exec -it -n jitsu mongodb-<pod-id> -- mongosh -u admin -p jitsu123
+kubectl exec -it -n jitsu jitsu-mongodb-0 -- mongosh -u jitsu -p jitsu123 --authenticationDatabase admin
 ```
 
 ### Resetting the Installation
@@ -196,16 +194,12 @@ To completely remove and reinstall:
 # Delete the Helm release
 helm uninstall jitsu -n jitsu
 
-# Delete the MongoDB deployment
-kubectl delete -f examples/local-kind/mongodb-deployment.yaml
-
 # Delete the namespace (optional - removes all data)
 kubectl delete namespace jitsu
 
-# Recreate
-kubectl create namespace jitsu
-kubectl apply -f examples/local-kind/mongodb-deployment.yaml
-helm install jitsu . -f examples/local-kind/values.yaml -n jitsu --timeout 10m
+# Reinstall
+helm dependency update
+helm install jitsu . -f examples/local-kind/values.yaml --create-namespace --namespace jitsu --timeout 10m
 ```
 
 ## Deleting the Cluster
@@ -220,15 +214,16 @@ kind delete cluster --name jitsu-local
 
 All local development files are in `examples/local-kind/`:
 
-- `kind-config.yaml` - Kind cluster configuration
-- `values.yaml` - Jitsu Helm values for local development
-- `mongodb-deployment.yaml` - Custom MongoDB deployment for ARM64 compatibility
-- `setup-access.sh` - Quick setup script
+- `kind-config.yaml` - Kind cluster configuration with port mappings
+- `values.yaml` - Jitsu Helm values for local development (includes ARM64 MongoDB fix)
+- `setup-access.sh` - Quick setup script for port-forwarding
+- `README.md` - Quick reference guide
 
 ## Notes
 
 - This setup is optimized for local development on Apple Silicon (ARM64)
-- The Bitnami dependency images have ARM64 compatibility issues, which is why MongoDB is deployed separately
+- MongoDB uses the official mongo:7.0.15 image instead of Bitnami for ARM64 compatibility
+- Access via port-forward (port 4000) instead of port 80 due to OrbStack/Kind limitations on macOS
 - TLS/HTTPS is disabled for local development
 - SignUp is enabled by default for testing
 - Resource limits are set low to work on development machines
