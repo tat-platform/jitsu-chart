@@ -1,0 +1,261 @@
+# Local development values for Jitsu on Kind
+# This configuration uses minimal resources suitable for local testing
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  host: "jitsu.local"
+  tls: false  # Disable TLS for local development
+
+# Console configuration
+console:
+  config:
+    seedUserEmail: "admin@jitsu.local"
+    seedUserPassword: "admin123"
+    disableSignup: false  # Allow signup for local testing
+    nextauthUrl: "http://localhost:4000"  # For local port-forward access
+    jitsuPublicUrl: "http://localhost:4000"  # For local port-forward access
+    jitsuIngestPublicUrl: "http://localhost:4000"  # For local port-forward access
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Rotor configuration
+rotor:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  waitFor:
+    - name: tokens
+      enabled: '{{ .Values.tokenGenerator.enabled }}'
+      resource: 'jobs.batch/{{ include "jitsu.fullname" . }}-token-generator-{{ include "jitsu.hash" . }}'
+      for: condition=Complete=true
+    - name: migration
+      enabled: '{{ .Values.migration.enabled }}'
+      resource: 'jobs.batch/{{ include "jitsu.fullname" . }}-migration-{{ include "jitsu.hash" . }}'
+      for: condition=Complete=True
+    - name: console
+      enabled: '{{ .Values.console.enabled }}'
+      resource: 'deployments.apps/{{ include "jitsu.fullname" . }}-console'
+      for: condition=Available=true
+    - name: bulker
+      enabled: '{{ .Values.bulker.enabled }}'
+      resource: 'deployments.apps/{{ include "jitsu.fullname" . }}-bulker'
+      for: condition=Available=true
+    - name: clickhouse
+      enabled: '{{ .Values.clickhouse.enabled }}'
+      resource: 'pods/{{ .Release.Name }}-clickhouse-shard0-0'
+      for: condition=Ready=true
+    - name: kafka
+      enabled: '{{ .Values.kafka.enabled }}'
+      resource: 'pods/{{ .Release.Name }}-kafka-controller-0'
+      for: condition=Ready=true
+
+
+# Syncctl configuration
+syncctl:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Bulker configuration
+bulker:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  waitFor:
+    - name: tokens
+      enabled: '{{ .Values.tokenGenerator.enabled }}'
+      resource: 'jobs.batch/{{ include "jitsu.fullname" . }}-token-generator-{{ include "jitsu.hash" . }}'
+      for: condition=Complete=true
+    - name: migration
+      enabled: '{{ .Values.migration.enabled }}'
+      resource: 'jobs.batch/{{ include "jitsu.fullname" . }}-migration-{{ include "jitsu.hash" . }}'
+      for: condition=Complete=True
+    - name: console
+      enabled: '{{ .Values.console.enabled }}'
+      resource: 'deployments.apps/{{ include "jitsu.fullname" . }}-console'
+      for: condition=Available=true
+    - name: clickhouse
+      enabled: '{{ .Values.clickhouse.enabled }}'
+      resource: 'pods/{{ .Release.Name }}-clickhouse-shard0-0'
+      for: condition=Ready=true
+    - name: postgresql
+      enabled: '{{ .Values.postgresql.enabled }}'
+      resource: 'pod/{{ .Release.Name }}-postgresql-0'
+      for: condition=Ready=true
+    - name: kafka
+      enabled: '{{ .Values.kafka.enabled }}'
+      resource: 'pods/{{ .Release.Name }}-kafka-controller-0'
+      for: condition=Ready=true
+
+# Ingest configuration
+ingest:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  waitFor:
+    - name: tokens
+      enabled: '{{ .Values.tokenGenerator.enabled }}'
+      resource: 'jobs.batch/{{ include "jitsu.fullname" . }}-token-generator-{{ include "jitsu.hash" . }}'
+      for: condition=Complete=true
+    - name: migration
+      enabled: '{{ .Values.migration.enabled }}'
+      resource: 'jobs.batch/{{ include "jitsu.fullname" . }}-migration-{{ include "jitsu.hash" . }}'
+      for: condition=Complete=True
+    - name: console
+      enabled: '{{ .Values.console.enabled }}'
+      resource: 'deployments.apps/{{ include "jitsu.fullname" . }}-console'
+      for: condition=Available=true
+    - name: rotor
+      enabled: '{{ .Values.rotor.enabled }}'
+      resource: 'deployments.apps/{{ include "jitsu.fullname" . }}-rotor'
+      for: condition=Available=true
+    - name: clickhouse
+      enabled: '{{ .Values.clickhouse.enabled }}'
+      resource: 'pods/{{ .Release.Name }}-clickhouse-shard0-0'
+      for: condition=Ready=true
+    - name: kafka
+      enabled: '{{ .Values.kafka.enabled }}'
+      resource: 'pods/{{ .Release.Name }}-kafka-controller-0'
+      for: condition=Ready=true
+
+
+# PostgreSQL configuration (simplified for local development)
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: "jitsu123"
+    password: "jitsu123"
+    database: "jitsu"
+  primary:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    persistence:
+      size: 2Gi
+
+# Kafka configuration (single replica for local)
+kafka:
+  enabled: true
+  # Set a fixed cluster ID for idempotence
+  kraft:
+    clusterId: "jitsu-local-kafka-cluster-id-12345"
+  controller:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    persistence:
+      size: 2Gi
+  listeners:
+    client:
+      protocol: PLAINTEXT
+    controller:
+      protocol: PLAINTEXT
+    interbroker:
+      protocol: PLAINTEXT
+
+# MongoDB configuration (disabled - using external MongoDB)
+# The bitnami/bitnamilegacy images don't have ARM64 support
+mongodb:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: mongo
+    tag: "7.0.15"
+  auth:
+    enabled: true
+    rootPassword: "root123"
+    usernames: ["jitsu"]
+    passwords: ["jitsu123"]
+    databases: ["jitsu"]
+  architecture: standalone
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 999
+    runAsGroup: 999
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+  podSecurityContext:
+    enabled: true
+    fsGroup: 999
+    fsGroupChangePolicy: "OnRootMismatch"
+  persistence:
+    enabled: true
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# ClickHouse configuration (simplified for local)
+clickhouse:
+  enabled: true
+  auth:
+    username: "default"
+    password: "jitsu123"
+  shards: 1
+  replicaCount: 1
+  zookeeper:
+    enabled: true
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    persistence:
+      size: 1Gi
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  persistence:
+    size: 2Gi
+
+# Redis (disabled by default in newer versions)
+redis:
+  enabled: false
+
+# Global configuration
+config:
+  # ClickHouse database name
+  clickhouseDatabase: "newjitsu_metrics"

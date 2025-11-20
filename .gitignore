@@ -1,1 +1,70 @@
+# Helm dependencies
 /charts
+
+# Claude Code settings
+.claude
+
+# Helm package files
+*.tgz
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Secrets (never commit secrets!)
+*-secret.yaml
+*-secrets.yaml
+secret-*.yaml
+secrets-*.yaml
+
+# Kubernetes local config
+kubeconfig
+*.kubeconfig
+
+# Test output
+*.log
+test-results/
+coverage/
+
+# Backup files
+backup/
+*.backup
+
+# Node modules (if any JavaScript tooling)
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+venv/
+env/
+
+# Helm Chart Lock file (optional - some prefer to commit this)
+# Chart.lock
+
+# Local values override files
+values-local.yaml
+values-override.yaml
+my-values.yaml
+
+# Port-forward log files
+/tmp/jitsu-port-forward.log
