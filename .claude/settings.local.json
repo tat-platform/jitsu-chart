@@ -34,7 +34,12 @@
       "Bash(git commit:*)",
       "Bash(kubectl create:*)",
       "Bash(SYNCCTL_TOKEN=\"Qli7qAjdD3jFB613jhtZBcTorJVM5Op0DPRAy9CbXjk\")",
-      "Bash(PGPASSWORD='jitsu123' psql:*)"
+      "Bash(PGPASSWORD='jitsu123' psql:*)",
+      "Bash(kubectl config:*)",
+      "Bash(kind get:*)",
+      "Bash(xargs kill -9)",
+      "Bash(./examples/local-kind/test-setup.sh:*)",
+      "Bash(./scripts/add-connector.sh:*)"
     ],
     "deny": [],
     "ask": []
