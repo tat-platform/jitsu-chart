@@ -368,5 +368,15 @@ app.kubernetes.io/component: console
 - name: UPDATE_DB
   value: "false"
 {{- end }}
+
+{{- with .authOidcProvider }}
+- name: AUTH_OIDC_PROVIDER
+  value: {{ . | quote }}
+{{- end }}
+
+{{- with .googleClientId }}
+- name: GOOGLE_CLIENT_ID
+  value: {{ . | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
