@@ -225,8 +225,8 @@ mongodb:
 clickhouse:
   enabled: true
   auth:
-    username: "default"
-    password: "jitsu123"
+    username: "jitsu"
+    password: "jitsu"
   shards: 1
   replicaCount: 1
   zookeeper:
